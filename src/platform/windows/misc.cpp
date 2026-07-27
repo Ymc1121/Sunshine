@@ -41,6 +41,7 @@
 // local includes
 #include "misc.h"
 #include "nvprefs/nvprefs_interface.h"
+#include "src/config.h"
 #include "src/entry_handler.h"
 #include "src/globals.h"
 #include "src/logging.h"
@@ -1152,6 +1153,13 @@ namespace platf {
   }
 
   void enable_mouse_keys() {
+    // When Moonlight mouse input is disabled, a physical or USB/IP mouse owns
+    // input. Never let Sunshine's cursor workaround steal that mouse's number
+    // pad while the device is temporarily detached.
+    if (!config::input.mouse) {
+      return;
+    }
+
     // If there is no mouse connected, enable Mouse Keys to force the cursor to appear
     if (!GetSystemMetrics(SM_MOUSEPRESENT)) {
       BOOST_LOG(info) << "A mouse was not detected. Sunshine will enable Mouse Keys while streaming to force the mouse cursor to appear.";

@@ -162,9 +162,11 @@ namespace input {
 
     input_t(
       safe::mail_raw_t::event_t<input::touch_port_t> touch_port_event,
-      platf::feedback_queue_t feedback_queue
+      platf::feedback_queue_t feedback_queue,
+      bool input_enabled
     ):
         shortcutFlags {},
+        input_enabled {input_enabled},
         gamepads(MAX_GAMEPADS),
         client_context {platf::allocate_client_input_context(platf_input)},
         touch_port_event {std::move(touch_port_event)},
@@ -177,6 +179,7 @@ namespace input {
 
     // Keep track of alt+ctrl+shift key combo
     int shortcutFlags;
+    bool input_enabled;
 
     std::vector<gamepad_t> gamepads;
     std::unique_ptr<platf::client_input_t> client_context;
@@ -1626,6 +1629,9 @@ namespace input {
    * @param input_data The input message.
    */
   void passthrough(std::shared_ptr<input_t> &input, std::vector<std::uint8_t> &&input_data) {
+    if (!input->input_enabled) {
+      return;
+    }
     {
       std::lock_guard<std::mutex> lg(input->input_queue_lock);
       input->input_queue.push_back(std::move(input_data));
@@ -1681,10 +1687,11 @@ namespace input {
     return true;
   }
 
-  std::shared_ptr<input_t> alloc(safe::mail_t mail) {
+  std::shared_ptr<input_t> alloc(safe::mail_t mail, bool input_enabled) {
     auto input = std::make_shared<input_t>(
       mail->event<input::touch_port_t>(mail::touch_port),
-      mail->queue<platf::gamepad_feedback_msg_t>(mail::gamepad_feedback)
+      mail->queue<platf::gamepad_feedback_msg_t>(mail::gamepad_feedback),
+      input_enabled
     );
 
     // Workaround to ensure new frames will be captured when a client connects

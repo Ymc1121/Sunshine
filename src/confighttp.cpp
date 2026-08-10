@@ -852,7 +852,8 @@ namespace confighttp {
    * @code{.json}
    * {
    *   "uuid": "<uuid>",
-   *   "enabled": true
+   *   "enabled": true,
+   *   "input_enabled": false
    * }
    * @endcode
    *
@@ -878,10 +879,19 @@ namespace confighttp {
       nlohmann::json input_tree = nlohmann::json::parse(ss.str());
       nlohmann::json output_tree;
       std::string uuid = input_tree.value("uuid", "");
-      bool enabled = input_tree.value("enabled", true);
-      output_tree["status"] = nvhttp::set_client_enabled(uuid, enabled);
+      const bool has_enabled = input_tree.contains("enabled");
+      const bool has_input_enabled = input_tree.contains("input_enabled");
+      const bool enabled = input_tree.value("enabled", true);
+      bool status = has_enabled || has_input_enabled;
+      if (has_enabled) {
+        status = nvhttp::set_client_enabled(uuid, enabled) && status;
+      }
+      if (has_input_enabled) {
+        status = nvhttp::set_client_input_enabled(uuid, input_tree.value("input_enabled", false)) && status;
+      }
+      output_tree["status"] = status;
 
-      if (!enabled && output_tree["status"]) {
+      if (has_enabled && !enabled && output_tree["status"]) {
         rtsp_stream::terminate_sessions();
 
         if (rtsp_stream::session_count() == 0 && proc::proc.running() > 0) {

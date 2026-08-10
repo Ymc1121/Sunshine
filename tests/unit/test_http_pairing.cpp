@@ -125,6 +125,19 @@ TEST_P(PairingTest, Run) {
     X509_NAME_oneline(X509_get_subject_name(input_cert.get()), original_suject_name, sizeof(original_suject_name));
 
     ASSERT_EQ(std::string(added_subject_name), std::string(original_suject_name));
+
+    const auto clients = get_all_clients();
+    ASSERT_TRUE(clients.is_array());
+    ASSERT_EQ(clients.size(), 1);
+    const auto &paired_client = clients[0];
+    ASSERT_EQ(paired_client["name"], input.session->client.name);
+    ASSERT_TRUE(paired_client["input_identity_ready"]);
+    ASSERT_FALSE(paired_client["input_enabled"]);
+    ASSERT_FALSE(is_client_input_enabled(input.session->client.uniqueID));
+    ASSERT_TRUE(set_client_input_enabled(paired_client["uuid"].get<std::string>(), true));
+    ASSERT_TRUE(is_client_input_enabled(input.session->client.uniqueID));
+
+    erase_all_clients();
   }
 }
 

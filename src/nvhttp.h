@@ -193,6 +193,21 @@ namespace nvhttp {
   bool set_client_enabled(std::string_view uuid, bool enabled);
 
   /**
+   * @brief Grant or revoke GameStream input for a paired client.
+   * @param uuid The UUID of the client.
+   * @param input_enabled Whether input packets from this client are accepted.
+   * @return true if the client was found and updated.
+   */
+  bool set_client_input_enabled(std::string_view uuid, bool input_enabled);
+
+  /**
+   * @brief Check whether a paired client identity may send GameStream input.
+   * @param unique_id The Moonlight client unique ID supplied during launch.
+   * @return true only for an enabled paired client with explicit input permission.
+   */
+  bool is_client_input_enabled(std::string_view unique_id);
+
+  /**
    * @brief Get all paired clients.
    * @return The list of all paired clients.
    * @examples

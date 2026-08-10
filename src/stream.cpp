@@ -342,6 +342,7 @@ namespace stream {
 
   struct session_t {
     config_t config;
+    bool input_enabled;
 
     safe::mail_t mail;
 
@@ -1961,7 +1962,7 @@ namespace stream {
     }
 
     int start(session_t &session, const std::string &addr_string) {
-      session.input = input::alloc(session.mail);
+      session.input = input::alloc(session.mail, session.input_enabled);
 
       session.broadcast_ref = broadcast.ref();
       if (!session.broadcast_ref) {
@@ -2011,6 +2012,7 @@ namespace stream {
       session->launch_session_id = launch_session.id;
 
       session->config = config;
+      session->input_enabled = launch_session.input_enabled;
 
       session->control.connect_data = launch_session.control_connect_data;
       session->control.feedback_queue = mail->queue<platf::gamepad_feedback_msg_t>(mail::gamepad_feedback);

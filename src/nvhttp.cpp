@@ -131,8 +131,10 @@ namespace nvhttp {
   struct named_cert_t {
     std::string name;
     std::string uuid;
+    std::string unique_id;
     std::string cert;
     bool enabled = true;
+    bool input_enabled = false;
   };
 
   struct client_t {
@@ -192,6 +194,8 @@ namespace nvhttp {
       named_cert_node.put("cert"s, named_cert.cert);
       named_cert_node.put("uuid"s, named_cert.uuid);
       named_cert_node.put("enabled"s, named_cert.enabled);
+      named_cert_node.put("unique_id"s, named_cert.unique_id);
+      named_cert_node.put("input_enabled"s, named_cert.input_enabled);
       named_cert_nodes.push_back(std::make_pair(""s, named_cert_node));
     }
     root.add_child("root.named_devices"s, named_cert_nodes);
@@ -243,6 +247,7 @@ namespace nvhttp {
             named_cert.name = ""s;
             named_cert.cert = el.get_value<std::string>();
             named_cert.uuid = uuid_util::uuid_t::generate().string();
+            named_cert.unique_id = uniqID;
             client.named_devices.emplace_back(named_cert);
           }
         }
@@ -256,6 +261,8 @@ namespace nvhttp {
         named_cert.cert = el.get_child("cert").get_value<std::string>();
         named_cert.uuid = el.get_child("uuid").get_value<std::string>();
         named_cert.enabled = el.get<bool>("enabled", true);
+        named_cert.unique_id = el.get<std::string>("unique_id", ""s);
+        named_cert.input_enabled = el.get<bool>("input_enabled", false);
         client.named_devices.emplace_back(named_cert);
       }
     }
@@ -269,17 +276,28 @@ namespace nvhttp {
     client_root = client;
   }
 
-  void add_authorized_client(const std::string &name, std::string &&cert) {
+  void add_authorized_client(const std::string &name, const std::string &unique_id, std::string &&cert) {
     client_t &client = client_root;
     named_cert_t named_cert;
     named_cert.name = name;
     named_cert.cert = std::move(cert);
     named_cert.uuid = uuid_util::uuid_t::generate().string();
+    named_cert.unique_id = unique_id;
     client.named_devices.emplace_back(named_cert);
 
     if (!config::sunshine.flags[config::flag::FRESH_STATE]) {
       save_state();
     }
+  }
+
+  bool is_client_input_enabled(const std::string_view unique_id) {
+    const client_t &client = client_root;
+    for (const auto &named_cert : client.named_devices) {
+      if (!unique_id.empty() && named_cert.unique_id == unique_id) {
+        return named_cert.enabled && named_cert.input_enabled;
+      }
+    }
+    return false;
   }
 
   std::shared_ptr<rtsp_stream::launch_session_t> make_launch_session(bool host_audio, const args_t &args) {
@@ -291,6 +309,8 @@ namespace nvhttp {
     std::copy(rikey.cbegin(), rikey.cend(), std::back_inserter(launch_session->gcm_key));
 
     launch_session->host_audio = host_audio;
+    launch_session->unique_id = get_arg(args, "uniqueid", "unknown");
+    launch_session->input_enabled = is_client_input_enabled(launch_session->unique_id);
     std::stringstream mode = std::stringstream(get_arg(args, "mode", "0x0x0"));
     // Split mode by the char "x", to populate width/height/fps
     int x = 0;
@@ -307,7 +327,6 @@ namespace nvhttp {
       }
       x++;
     }
-    launch_session->unique_id = (get_arg(args, "uniqueid", "unknown"));
     launch_session->appid = (int) util::from_view(get_arg(args, "appid", "unknown"));
     launch_session->enable_sops = util::from_view(get_arg(args, "sops", "0"));
     launch_session->surround_info = (int) util::from_view(get_arg(args, "surroundAudioInfo", "196610"));
@@ -488,7 +507,7 @@ namespace nvhttp {
       add_cert->raise(crypto::x509(client.cert));
 
       // The client is now successfully paired and will be authorized to connect
-      add_authorized_client(client.name, std::move(client.cert));
+      add_authorized_client(client.name, client.uniqueID, std::move(client.cert));
     } else {
       tree.put("root.paired", 0);
     }
@@ -781,6 +800,8 @@ namespace nvhttp {
       named_cert_node["name"] = named_cert.name;
       named_cert_node["uuid"] = named_cert.uuid;
       named_cert_node["enabled"] = named_cert.enabled;
+      named_cert_node["input_enabled"] = named_cert.input_enabled;
+      named_cert_node["input_identity_ready"] = !named_cert.unique_id.empty();
       named_cert_nodes.push_back(named_cert_node);
     }
 
@@ -1244,6 +1265,18 @@ namespace nvhttp {
     for (auto &named_cert : client.named_devices) {
       if (named_cert.uuid == uuid) {
         named_cert.enabled = enabled;
+        save_state();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool set_client_input_enabled(const std::string_view uuid, bool input_enabled) {
+    client_t &client = client_root;
+    for (auto &named_cert : client.named_devices) {
+      if (named_cert.uuid == uuid) {
+        named_cert.input_enabled = input_enabled;
         save_state();
         return true;
       }

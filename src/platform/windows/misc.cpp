@@ -102,9 +102,6 @@ using namespace std::literals;
 namespace platf {
   using adapteraddrs_t = util::c_ptr<IP_ADAPTER_ADDRESSES>;
 
-  bool enabled_mouse_keys = false;
-  MOUSEKEYS previous_mouse_keys_state;
-
   HANDLE qos_handle = nullptr;
 
   decltype(QOSCreateHandle) *fn_QOSCreateHandle = nullptr;
@@ -1148,14 +1145,6 @@ namespace platf {
         }
       }
     }
-    enable_mouse_keys();
-  }
-
-  void enable_mouse_keys() {
-    // GouKuai keeps Windows Mouse Keys untouched. Mouse Keys is a system-wide
-    // accessibility setting that consumes the numeric keypad. Enabling it as a
-    // cursor workaround would therefore break a player's USB/IP keyboard even
-    // when that player is not authorized to send Sunshine input.
   }
 
   void streaming_will_stop() {
@@ -1181,14 +1170,6 @@ namespace platf {
       wlan_handle = nullptr;
     }
 
-    // Restore Mouse Keys back to the previous settings if we turned it on
-    if (enabled_mouse_keys) {
-      enabled_mouse_keys = false;
-      if (!SystemParametersInfoW(SPI_SETMOUSEKEYS, 0, &previous_mouse_keys_state, 0)) {
-        auto winerr = GetLastError();
-        BOOST_LOG(warning) << "Unable to restore original state of Mouse Keys: "sv << winerr;
-      }
-    }
   }
 
   void restart_on_exit() {

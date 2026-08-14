@@ -631,8 +631,6 @@ namespace platf {
    */
   void set_thread_name(const std::string &name);
 
-  void enable_mouse_keys();
-
   // Allow OS-specific actions to be taken to prepare for streaming
   void streaming_will_start();
   void streaming_will_stop();

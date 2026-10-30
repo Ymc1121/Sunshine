@@ -6,6 +6,8 @@
 #include <array>
 #include <atomic>
 #include <bitset>
+#include <cstdlib>
+#include <string_view>
 #include <list>
 #include <thread>
 
@@ -2795,6 +2797,16 @@ namespace video {
     }
 
     auto encoder_list = encoders;
+
+#ifdef _WIN32
+    // Opt-in test only: begin tracking adapter changes before the initial
+    // full probe. A failed factory remains invalid and requests another probe.
+    // This does not suppress probing when no encoder has been selected.
+    const char *reuse_startup_probe = std::getenv("GOKUAI_TEST_REUSE_STARTUP_ENCODER_PROBE");
+    if (!chosen_encoder && reuse_startup_probe && std::string_view(reuse_startup_probe) == "1") {
+      (void) platf::needs_encoder_reenumeration();
+    }
+#endif
 
     // If we already have a good encoder, check to see if another probe is required
     if (chosen_encoder && !(chosen_encoder->flags & ALWAYS_REPROBE) && !platf::needs_encoder_reenumeration()) {

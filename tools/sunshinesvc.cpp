@@ -240,8 +240,12 @@ VOID WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv) {
   service_status.dwCurrentState = SERVICE_RUNNING;
   SetServiceStatus(service_status_handle, &service_status);
 
-  // Loop every 3 seconds until the stop event is set or Sunshine.exe is running
-  while (WaitForSingleObject(stop_event, 3000) != WAIT_OBJECT_0) {
+  // The first launch must not pay the recovery backoff. Still inspect the
+  // stop event before launching, and retain the existing delay on retries.
+  DWORD launch_wait_ms = 0;
+  while (WaitForSingleObject(stop_event, launch_wait_ms) != WAIT_OBJECT_0) {
+    launch_wait_ms = 3000;
+
     auto console_session_id = WTSGetActiveConsoleSessionId();
     if (console_session_id == 0xFFFFFFFF) {
       // No console session yet

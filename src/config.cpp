@@ -521,7 +521,7 @@ namespace config {
   };
 
   stream_t stream {
-    10s,  // ping_timeout
+    60s,  // ping_timeout: paired with the client cumulative interruption budget
 
     APPS_JSON_PATH,
 

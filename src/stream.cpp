@@ -20,6 +20,9 @@ extern "C" {
 }
 
 // local includes
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include "config.h"
 #include "display_device.h"
 #include "globals.h"
@@ -593,6 +596,8 @@ namespace stream {
           }
           break;
         case ENET_EVENT_TYPE_CONNECT:
+          // A short physical outage must not inherit ENet\'s earlier timeout.
+          enet_peer_timeout(event.peer, 2, 60000, 60000);
           BOOST_LOG(info) << "CLIENT CONNECTED"sv;
           break;
         case ENET_EVENT_TYPE_DISCONNECT:
@@ -1919,6 +1924,13 @@ namespace stream {
       // GPU scheduling enabled. If this happens, we will terminate ourselves and the service can restart.
       // The alternative is that Sunshine can never start another session until it's manually restarted.
       auto task = []() {
+#ifdef _WIN32
+        if (GetSystemMetrics(SM_SHUTTINGDOWN)) {
+          BOOST_LOG(warning) << "GOKUAI_SESSION_CLEANUP_TIMEOUT reason=windows_shutdown recovery=suppressed"sv;
+          logging::log_flush();
+          return;  // OS shutdown owns final process termination; never debug-trap/restart.
+        }
+#endif
         BOOST_LOG(fatal) << "Hang detected! Session failed to terminate in 10 seconds."sv;
         logging::log_flush();
         lifetime::debug_trap();

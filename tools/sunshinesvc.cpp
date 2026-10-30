@@ -7,6 +7,7 @@
 #include <string>
 #include <Windows.h>
 #include <WtsApi32.h>
+#include "../src/platform/windows/system_shutdown_signal.h"
 
 // PROC_THREAD_ATTRIBUTE_JOB_LIST is currently missing from MinGW headers
 #ifndef PROC_THREAD_ATTRIBUTE_JOB_LIST
@@ -17,6 +18,7 @@ SERVICE_STATUS_HANDLE service_status_handle;
 SERVICE_STATUS service_status;
 HANDLE stop_event;
 HANDLE session_change_event;
+HANDLE system_shutdown_signal;
 
 constexpr auto SERVICE_NAME = "SunshineService";
 
@@ -243,7 +245,14 @@ VOID WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv) {
   // The first launch must not pay the recovery backoff. Still inspect the
   // stop event before launching, and retain the existing delay on retries.
   DWORD launch_wait_ms = 0;
+  system_shutdown_signal = gokuai_shutdown::create_service_signal();
+  if (!system_shutdown_signal) {
+    // Refuse an untrusted or inaccessible cross-process shutdown object.
+    service_status.dwWin32ExitCode = ERROR_ACCESS_DENIED;
+    SetEvent(stop_event);
+  }
   while (WaitForSingleObject(stop_event, launch_wait_ms) != WAIT_OBJECT_0) {
+    if (gokuai_shutdown::requested(system_shutdown_signal) || GetSystemMetrics(SM_SHUTTINGDOWN)) break;
     launch_wait_ms = 3000;
 
     auto console_session_id = WTSGetActiveConsoleSessionId();
@@ -302,7 +311,8 @@ VOID WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv) {
             // Sunshine terminated itself.
 
             DWORD exit_code;
-            if (GetExitCodeProcess(process_info.hProcess, &exit_code) && exit_code == ERROR_SHUTDOWN_IN_PROGRESS) {
+            if (gokuai_shutdown::requested(system_shutdown_signal) || GetSystemMetrics(SM_SHUTTINGDOWN) ||
+                (GetExitCodeProcess(process_info.hProcess, &exit_code) && exit_code == ERROR_SHUTDOWN_IN_PROGRESS)) {
               // Sunshine is asking for us to shut down, so gracefully stop ourselves.
               SetEvent(stop_event);
             }
@@ -319,6 +329,7 @@ VOID WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv) {
   }
 
   // Let SCM know we've stopped
+  if (system_shutdown_signal) CloseHandle(system_shutdown_signal);
   service_status.dwCurrentState = SERVICE_STOPPED;
   SetServiceStatus(service_status_handle, &service_status);
 }

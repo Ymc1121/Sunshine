@@ -22,6 +22,7 @@ extern "C" {
 // local includes
 #ifdef _WIN32
 #include <windows.h>
+#include "platform/windows/system_shutdown_signal.h"
 #endif
 #include "config.h"
 #include "display_device.h"
@@ -1925,7 +1926,7 @@ namespace stream {
       // The alternative is that Sunshine can never start another session until it's manually restarted.
       auto task = []() {
 #ifdef _WIN32
-        if (GetSystemMetrics(SM_SHUTTINGDOWN)) {
+        if (gokuai_shutdown::requested() || GetSystemMetrics(SM_SHUTTINGDOWN)) {
           BOOST_LOG(warning) << "GOKUAI_SESSION_CLEANUP_TIMEOUT reason=windows_shutdown recovery=suppressed"sv;
           logging::log_flush();
           return;  // OS shutdown owns final process termination; never debug-trap/restart.

@@ -26,6 +26,9 @@
 #include "system_tray.h"
 #include "upnp.h"
 #include "video.h"
+#ifdef _WIN32
+  #include "platform/windows/system_shutdown_signal.h"
+#endif
 
 extern "C" {
 #include "rswrapper.h"
@@ -74,6 +77,18 @@ LRESULT CALLBACK SessionMonitorWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, L
       return 0;
     case WM_ENDSESSION:
       {
+        if (!wParam) {
+          // Windows can cancel shutdown after WM_QUERYENDSESSION. Keep the
+          // existing stream and recovery policy intact in that case.
+          std::cout << "GOKUAI_SYSTEM_SHUTDOWN_CANCELLED" << std::endl;
+          return 0;
+        }
+        if (gokuai_shutdown::confirmed_system_end(true, lParam)) {
+          // Publish before exiting: SCM PRESHUTDOWN arrives after interactive
+          // processes close, which otherwise races Agent/service recovery.
+          auto published = gokuai_shutdown::publish_confirmed();
+          std::cout << "GOKUAI_SYSTEM_SHUTDOWN_CONFIRMED handoff=" << published << std::endl;
+        }
         // Terminate ourselves with a blocking exit call
         std::cout << "Received WM_ENDSESSION"sv << std::endl;
         lifetime::exit_sunshine(0, false);

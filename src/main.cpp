@@ -80,14 +80,14 @@ LRESULT CALLBACK SessionMonitorWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, L
         if (!wParam) {
           // Windows can cancel shutdown after WM_QUERYENDSESSION. Keep the
           // existing stream and recovery policy intact in that case.
-          std::cout << "GOKUAI_SYSTEM_SHUTDOWN_CANCELLED" << std::endl;
+          BOOST_LOG(info) << "GOKUAI_SYSTEM_SHUTDOWN_CANCELLED";
           return 0;
         }
         if (gokuai_shutdown::confirmed_system_end(true, lParam)) {
           // Publish before exiting: SCM PRESHUTDOWN arrives after interactive
           // processes close, which otherwise races Agent/service recovery.
           auto published = gokuai_shutdown::publish_confirmed();
-          std::cout << "GOKUAI_SYSTEM_SHUTDOWN_CONFIRMED handoff=" << published << std::endl;
+          BOOST_LOG(info) << "GOKUAI_SYSTEM_SHUTDOWN_CONFIRMED handoff=" << published;
         }
         // Terminate ourselves with a blocking exit call
         std::cout << "Received WM_ENDSESSION"sv << std::endl;

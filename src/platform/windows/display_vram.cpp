@@ -1094,12 +1094,15 @@ namespace platf::dxgi {
       }
 
       const bool diagnostic_cuda = GetFileAttributesW(L"C:\\ProgramData\\GouKuai\\Diagnostics\\conversion-force-cuda.enable") != INVALID_FILE_ATTRIBUTES;
-      if (pix_fmt == pix_fmt_e::yuv444p16 || diagnostic_cuda) {
+      if (pix_fmt == pix_fmt_e::yuv444p16) {
         if (diagnostic_cuda) {
           BOOST_LOG(info) << "GouKuai NVENC CUDA interop diagnostic enabled; process policy unchanged";
         }
         nvenc_d3d = std::make_unique<nvenc::nvenc_d3d11_on_cuda>(base.device.get());
       } else {
+        if (diagnostic_cuda) {
+          BOOST_LOG(warning) << "GouKuai CUDA diagnostic rejected for unsupported input format; retaining native D3D11";
+        }
         nvenc_d3d = std::make_unique<nvenc::nvenc_d3d11_native>(base.device.get());
       }
       nvenc = nvenc_d3d.get();

@@ -715,6 +715,19 @@ namespace platf::dxgi {
       if (FAILED(status)) {
         BOOST_LOG(warning) << "Failed to increase capture GPU thread priority. Please run application as administrator for optimal performance.";
       }
+      // The capture device produces the shared texture consumed by conversion.
+      // Elevating only the consumer leaves the producer fence at normal priority.
+      // Keep this opt-in and preserve the process-level HAGS freeze guard.
+      if (adapter_desc.VendorId == 0x10de &&
+          GetFileAttributesW(L"C:\\ProgramData\\GouKuai\\Diagnostics\\conversion-soft-priority.enable") != INVALID_FILE_ATTRIBUTES) {
+        status = dxgi->SetGPUThreadPriority((1 << 30) | 16);
+        if (SUCCEEDED(status)) {
+          BOOST_LOG(info) << "GouKuai capture soft realtime 16 request accepted; process policy unchanged; performance verification required";
+        } else {
+          const auto restored = dxgi->SetGPUThreadPriority(7);
+          BOOST_LOG(warning) << "GouKuai capture soft priority unavailable; relative 7 restore status " << util::hex(restored).to_string_view();
+        }
+      }
     }
 
     // Try to reduce latency

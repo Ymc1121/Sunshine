@@ -204,6 +204,14 @@ namespace platf::dxgi {
   }
 
   capture_e display_base_t::capture(const push_captured_image_cb_t &push_captured_image_cb, const pull_free_image_cb_t &pull_free_image_cb, bool *cursor) {
+    auto diagnostic_modes = []() {
+      unsigned modes = 0;
+      if (GetFileAttributesW(L"C:\\ProgramData\\GouKuai\\Diagnostics\\conversion-soft-priority.enable") != INVALID_FILE_ATTRIBUTES) modes |= 1;
+      if (GetFileAttributesW(L"C:\\ProgramData\\GouKuai\\Diagnostics\\conversion-force-cuda.enable") != INVALID_FILE_ATTRIBUTES) modes |= 2;
+      return modes;
+    };
+    const auto initial_diagnostic_modes = diagnostic_modes();
+    auto next_diagnostic_check = std::chrono::steady_clock::now() + 1s;
     auto adjust_client_frame_rate = [&]() -> DXGI_RATIONAL {
       // Use exactly the requested rate if the client sent an X100 value
       if (client_frame_rate_strict.Numerator > 0) {
@@ -244,6 +252,13 @@ namespace platf::dxgi {
     sleep_overshoot_logger.reset();
 
     while (true) {
+      if (std::chrono::steady_clock::now() >= next_diagnostic_check) {
+        next_diagnostic_check = std::chrono::steady_clock::now() + 1s;
+        if (diagnostic_modes() != initial_diagnostic_modes) {
+          BOOST_LOG(info) << "GouKuai diagnostic conversion mode changed; rebuilding capture through existing reinit path";
+          return platf::capture_e::reinit;
+        }
+      }
       // This will return false if the HDR state changes or for any number of other
       // display or GPU changes. We should reinit to examine the updated state of
       // the display subsystem. It is recommended to call this once per frame.

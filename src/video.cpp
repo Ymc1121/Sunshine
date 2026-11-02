@@ -1347,6 +1347,7 @@ namespace video {
     };
 
     auto pull_free_image_callback = [&](std::shared_ptr<platf::img_t> &img_out) -> bool {
+      frame_timing::span trace_pool("capture_image_pool_wait");
       img_out.reset();
       while (capture_ctx_queue->running()) {
         // pick first allocated but unused
@@ -2366,7 +2367,12 @@ namespace video {
             ctx->idr_events->pop();
           }
 
-          if (frame_captured && pos->session->convert(*img)) {
+          auto convert_image = [&]() {
+            frame_timing::context_guard trace_context(reinterpret_cast<uintptr_t>(ctx->channel_data), ctx->frame_nr, frame_timing::source_ns(img->frame_timestamp));
+            frame_timing::span trace_convert("convert_submit");
+            return pos->session->convert(*img);
+          };
+          if (frame_captured && convert_image()) {
             BOOST_LOG(error) << "Could not convert image"sv;
             ctx->shutdown_event->raise(true);
 

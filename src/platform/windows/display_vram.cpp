@@ -199,6 +199,7 @@ namespace platf::dxgi {
       if (_locked) {
         return true;
       }
+      frame_timing::span trace_lock("capture_keyed_mutex");
       HRESULT status = _mutex->AcquireSync(0, INFINITE);
       if (status == S_OK) {
         _locked = true;

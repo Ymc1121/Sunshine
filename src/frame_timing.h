@@ -91,6 +91,7 @@ namespace frame_timing {
       std::ofstream out(output_, std::ios::out | std::ios::trunc);
       if (!out) return;
       out << "# schema=gokuai.frame-timing/v1,steady_start_ns=" << started_ << ",utc_start_ns=" << utc_started_
+          << ",requested_end_ns=" << deadline_ << ",window_complete=" << (now_ns() >= deadline_ ? 1 : 0)
           << ",overflow=" << (overflow_ ? 1 : 0) << ",rows=" << rows_.size() << '\n';
       out << "begin_ns,end_ns,stage,channel,frame,source_ns,value\n";
       for (const auto &r : rows_) out << r.begin << ',' << r.end << ',' << r.stage << ',' << r.context.channel << ',' << r.context.frame << ',' << r.context.source << ',' << r.value << '\n';

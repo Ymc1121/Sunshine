@@ -208,6 +208,7 @@ namespace platf::dxgi {
       unsigned modes = 0;
       if (GetFileAttributesW(L"C:\\ProgramData\\GouKuai\\Diagnostics\\conversion-soft-priority.enable") != INVALID_FILE_ATTRIBUTES) modes |= 1;
       if (GetFileAttributesW(L"C:\\ProgramData\\GouKuai\\Diagnostics\\conversion-force-cuda.enable") != INVALID_FILE_ATTRIBUTES) modes |= 2;
+      if (GetFileAttributesW(L"C:\\ProgramData\\GouKuai\\Diagnostics\\conversion-single-pass.enable") != INVALID_FILE_ATTRIBUTES) modes |= 4;
       return modes;
     };
     const auto initial_diagnostic_modes = diagnostic_modes();

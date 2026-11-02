@@ -16,8 +16,14 @@ of these files under the existing private diagnostic directory:
   Other input formats log a rejection and retain native D3D11. The original
   unrestricted diagnostic attempt failed its format guard in the owned test;
   it is not evidence that CUDA encoding is slow or unsupported by the GPU.
+- `C:/ProgramData/GouKuai/Diagnostics/conversion-single-pass.enable`: disable
+  the optional NVENC preliminary pass for this private diagnostic run. This
+  switch is independent of the device-priority switch so the combination and
+  each component can be compared. It does not add fields to the V2 runtime INI,
+  whose strict Agent validation must remain intact. Removing the marker restores
+  the configured pass count on the next capture reinitialization.
 
-Use one switch at a time for controlled comparisons. Changing a switch causes
+Change one variable at a time for controlled comparisons. Changing a switch causes
 the existing capture reinitialization path to rebuild the encoder; it does not
 restart Windows, Sunshine or the game. The files are checked at most once per
 second. Reinitialization can briefly interrupt frame delivery, so exclude the

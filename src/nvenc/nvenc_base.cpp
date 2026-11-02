@@ -8,6 +8,9 @@
 
 // standard includes
 #include <format>
+#ifdef _WIN32
+  #include <Windows.h>
+#endif
 
 // local includes
 #include "src/config.h"
@@ -246,8 +249,18 @@ namespace nvenc {
     enc_config.rcParams.zeroReorderDelay = 1;
     enc_config.rcParams.enableLookahead = 0;
     enc_config.rcParams.lowDelayKeyFrameScale = 1;
-    enc_config.rcParams.multiPass = config.two_pass == nvenc_two_pass::quarter_resolution ? NV_ENC_TWO_PASS_QUARTER_RESOLUTION :
-                                    config.two_pass == nvenc_two_pass::full_resolution    ? NV_ENC_TWO_PASS_FULL_RESOLUTION :
+    auto two_pass = config.two_pass;
+#ifdef _WIN32
+    // Owned diagnostic switch, separate from the signed V2 runtime INI contract.
+    // Sampling at encoder creation makes the existing capture reinit the only
+    // transition point; default configurations keep their original policy.
+    if (GetFileAttributesW(L"C:\\ProgramData\\GouKuai\\Diagnostics\\conversion-single-pass.enable") != INVALID_FILE_ATTRIBUTES) {
+      two_pass = nvenc_two_pass::disabled;
+      BOOST_LOG(info) << "GouKuai single-pass diagnostic enabled; runtime configuration unchanged";
+    }
+#endif
+    enc_config.rcParams.multiPass = two_pass == nvenc_two_pass::quarter_resolution ? NV_ENC_TWO_PASS_QUARTER_RESOLUTION :
+                                    two_pass == nvenc_two_pass::full_resolution    ? NV_ENC_TWO_PASS_FULL_RESOLUTION :
                                                                                             NV_ENC_MULTI_PASS_DISABLED;
 
     enc_config.rcParams.enableAQ = config.adaptive_quantization;

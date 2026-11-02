@@ -34,7 +34,7 @@ TEST(FrameTiming, OptInWindowPersistsCorrelatedRowsWithoutOverwriting) {
     recorder.add({t, t + 10, "test_stage", {7, 11, 1234}, 42});
     recorder.finish();
   }
-  std::ifstream input(output);
+  std::ifstream input(output, std::ios::binary);
   std::string content((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
   EXPECT_NE(content.find("window_complete=0"), std::string::npos);
   EXPECT_NE(content.find("overflow=0,rows=1"), std::string::npos);

@@ -7,8 +7,9 @@ On a specifically owned Windows test machine, an administrator may create one
 of these files under the existing private diagnostic directory:
 
 - `C:/ProgramData/GouKuai/Diagnostics/conversion-soft-priority.enable`: request
-  DXGI absolute priority 16 (soft realtime) on the conversion device. Log and
-  verify the returned priority. Failed or unsupported requests restore relative
+  DXGI absolute priority 16 (soft realtime) on the conversion device. Log API
+  acceptance and the relative getter value; that getter is not proof of an
+  absolute scheduling class. Failed or unsupported requests restore relative
   priority 7. This does not request process realtime or hard GPU realtime.
 - `C:/ProgramData/GouKuai/Diagnostics/conversion-force-cuda.enable`: compare the
   already existing CUDA interop NVENC implementation with the native D3D11 path.

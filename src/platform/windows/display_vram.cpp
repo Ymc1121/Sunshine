@@ -789,9 +789,14 @@ namespace platf::dxgi {
         constexpr INT requested = (1 << 30) | 16;
         status = dxgi->SetGPUThreadPriority(requested);
         INT observed = 0;
-        if (SUCCEEDED(status) && SUCCEEDED(dxgi->GetGPUThreadPriority(&observed)) &&
-            (observed == requested || observed == 16)) {
-          BOOST_LOG(info) << "GouKuai conversion context soft realtime 16 verified; process policy unchanged";
+        if (SUCCEEDED(status)) {
+          // This getter exposes the relative priority (-7..7), not the
+          // absolute scheduling class. Do not mistake API acceptance for a
+          // verified scheduling/performance result.
+          const auto observed_status = dxgi->GetGPUThreadPriority(&observed);
+          BOOST_LOG(info) << "GouKuai conversion soft realtime 16 request accepted; relative readback "
+                          << observed << " status " << util::hex(observed_status).to_string_view()
+                          << "; process policy unchanged; performance verification required";
         } else {
           auto restored = dxgi->SetGPUThreadPriority(7);
           BOOST_LOG(warning) << "GouKuai conversion soft priority unavailable; relative 7 restore status " << util::hex(restored).to_string_view();

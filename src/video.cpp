@@ -32,6 +32,7 @@ extern "C" {
 #include "platform/common.h"
 #include "sync.h"
 #include "video.h"
+#include "frame_timing.h"
 
 #ifdef _WIN32
 extern "C" {
@@ -1604,6 +1605,8 @@ namespace video {
   }
 
   int encode(int64_t frame_nr, encode_session_t &session, safe::mail_raw_t::queue_t<packet_t> &packets, void *channel_data, std::optional<std::chrono::steady_clock::time_point> frame_timestamp) {
+    frame_timing::context_guard trace_context(reinterpret_cast<uintptr_t>(channel_data), frame_nr, frame_timing::source_ns(frame_timestamp));
+    frame_timing::span trace_encode("encode_total");
     if (auto avcodec_session = dynamic_cast<avcodec_encode_session_t *>(&session)) {
       return encode_avcodec(frame_nr, *avcodec_session, packets, channel_data, frame_timestamp);
     } else if (auto nvenc_session = dynamic_cast<nvenc_encode_session_t *>(&session)) {
@@ -2107,6 +2110,8 @@ namespace video {
       if (!requested_idr_frame || images->peek()) {
         if (auto img = images->pop(max_frametime)) {
           frame_timestamp = img->frame_timestamp;
+          frame_timing::context_guard trace_context(reinterpret_cast<uintptr_t>(channel_data), frame_nr, frame_timing::source_ns(frame_timestamp));
+          frame_timing::span trace_convert("convert_submit");
           if (session->convert(*img)) {
             BOOST_LOG(error) << "Could not convert image"sv;
             return;

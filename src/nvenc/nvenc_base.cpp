@@ -4,6 +4,7 @@
  */
 // this include
 #include "nvenc_base.h"
+#include "src/frame_timing.h"
 
 // standard includes
 #include <format>
@@ -503,18 +504,22 @@ namespace nvenc {
     assert(registered_input_buffer);
     assert(output_bitstream);
 
+    frame_timing::span trace_sync("nvenc_input_sync");
     if (!synchronize_input_buffer()) {
       BOOST_LOG(error) << "NvEnc: failed to synchronize input buffer";
       return {};
     }
+    trace_sync.stop();
 
     NV_ENC_MAP_INPUT_RESOURCE mapped_input_buffer = {min_struct_version(NV_ENC_MAP_INPUT_RESOURCE_VER)};
     mapped_input_buffer.registeredResource = registered_input_buffer;
 
+    frame_timing::span trace_map("nvenc_map_input");
     if (nvenc_failed(nvenc->nvEncMapInputResource(encoder, &mapped_input_buffer))) {
       BOOST_LOG(error) << "NvEnc: NvEncMapInputResource() failed: " << last_nvenc_error_string;
       return {};
     }
+    trace_map.stop();
     auto unmap_guard = util::fail_guard([&] {
       if (nvenc_failed(nvenc->nvEncUnmapInputResource(encoder, mapped_input_buffer.mappedResource))) {
         BOOST_LOG(error) << "NvEnc: NvEncUnmapInputResource() failed: " << last_nvenc_error_string;
@@ -532,24 +537,30 @@ namespace nvenc {
     pic_params.outputBitstream = output_bitstream;
     pic_params.completionEvent = async_event_handle;
 
+    frame_timing::span trace_submit("nvenc_submit");
     if (nvenc_failed(nvenc->nvEncEncodePicture(encoder, &pic_params))) {
       BOOST_LOG(error) << "NvEnc: NvEncEncodePicture() failed: " << last_nvenc_error_string;
       return {};
     }
+    trace_submit.stop();
 
     NV_ENC_LOCK_BITSTREAM lock_bitstream = {min_struct_version(NV_ENC_LOCK_BITSTREAM_VER, 1, 2)};
     lock_bitstream.outputBitstream = output_bitstream;
     lock_bitstream.doNotWait = async_event_handle ? 1 : 0;
 
+    frame_timing::span trace_wait("nvenc_completion_wait");
     if (async_event_handle && !wait_for_async_event(100)) {
       BOOST_LOG(error) << "NvEnc: frame " << frame_index << " encode wait timeout";
       return {};
     }
+    trace_wait.stop();
 
+    frame_timing::span trace_lock("nvenc_lock_bitstream");
     if (nvenc_failed(nvenc->nvEncLockBitstream(encoder, &lock_bitstream))) {
       BOOST_LOG(error) << "NvEnc: NvEncLockBitstream() failed: " << last_nvenc_error_string;
       return {};
     }
+    trace_lock.stop();
 
     auto data_pointer = (uint8_t *) lock_bitstream.bitstreamBufferPtr;
     nvenc_encoded_frame encoded_frame {

@@ -23,6 +23,7 @@ extern "C" {
 #include "misc.h"
 #include "src/config.h"
 #include "src/logging.h"
+#include "src/frame_timing.h"
 #include "src/nvenc/nvenc_config.h"
 #include "src/nvenc/nvenc_d3d11_native.h"
 #include "src/nvenc/nvenc_d3d11_on_cuda.h"
@@ -406,7 +407,9 @@ namespace platf::dxgi {
         }
 
         // Acquire encoder mutex to synchronize with capture code
+        frame_timing::span trace_mutex("convert_keyed_mutex");
         auto status = img_ctx.encoder_mutex->AcquireSync(0, INFINITE);
+        trace_mutex.stop();
         if (status != S_OK) {
           BOOST_LOG(error) << "Failed to acquire encoder mutex [0x"sv << util::hex(status).to_string_view() << ']';
           return -1;
@@ -1145,11 +1148,14 @@ namespace platf::dxgi {
   }
 
   capture_e display_ddup_vram_t::snapshot(const pull_free_image_cb_t &pull_free_image_cb, std::shared_ptr<platf::img_t> &img_out, std::chrono::milliseconds timeout, bool cursor_visible) {
+    frame_timing::span trace_snapshot("capture_snapshot", timeout.count());
     HRESULT status;
     DXGI_OUTDUPL_FRAME_INFO frame_info;
 
     resource_t::pointer res_p {};
+    frame_timing::span trace_acquire("capture_acquire", timeout.count());
     auto capture_status = dup.next_frame(frame_info, timeout, &res_p);
+    trace_acquire.stop();
     resource_t res {res_p};
 
     if (capture_status != capture_e::ok) {
@@ -1548,6 +1554,7 @@ namespace platf::dxgi {
 
     if (img_out) {
       img_out->frame_timestamp = frame_timestamp;
+      trace_snapshot.source(frame_timing::source_ns(frame_timestamp));
     }
 
     return capture_e::ok;

@@ -33,6 +33,7 @@ extern "C" {
 #include "platform/common.h"
 #include "process.h"
 #include "stream.h"
+#include "frame_timing.h"
 #include "sync.h"
 #include "system_tray.h"
 #include "thread_safe.h"
@@ -1301,6 +1302,8 @@ namespace stream {
     auto ratecontrol_next_frame_start = std::chrono::steady_clock::now();
 
     while (auto packet = packets->pop()) {
+      frame_timing::context_guard trace_context(reinterpret_cast<uintptr_t>(packet->channel_data), packet->frame_index(), frame_timing::source_ns(packet->frame_timestamp));
+      frame_timing::span trace_send("packetize_and_send", packet->data_size());
       if (shutdown_event->peek()) {
         break;
       }

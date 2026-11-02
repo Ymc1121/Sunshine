@@ -1088,7 +1088,11 @@ namespace platf::dxgi {
         return false;
       }
 
-      if (pix_fmt == pix_fmt_e::yuv444p16) {
+      const bool diagnostic_cuda = GetFileAttributesW(L"C:\\ProgramData\\GouKuai\\Diagnostics\\conversion-force-cuda.enable") != INVALID_FILE_ATTRIBUTES;
+      if (pix_fmt == pix_fmt_e::yuv444p16 || diagnostic_cuda) {
+        if (diagnostic_cuda) {
+          BOOST_LOG(info) << "GouKuai NVENC CUDA interop diagnostic enabled; process policy unchanged";
+        }
         nvenc_d3d = std::make_unique<nvenc::nvenc_d3d11_on_cuda>(base.device.get());
       } else {
         nvenc_d3d = std::make_unique<nvenc::nvenc_d3d11_native>(base.device.get());

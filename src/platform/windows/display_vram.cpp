@@ -780,6 +780,23 @@ namespace platf::dxgi {
         BOOST_LOG(warning) << "Failed to increase encoding GPU thread priority. Please run application as administrator for optimal performance.";
       }
 
+      // Opt-in diagnostic: raise only the conversion device, preserving the
+      // process-level HAGS/NVENC freeze guard. Soft realtime yields to other
+      // workloads; never use hard realtime or the internal-use priority.
+      DXGI_ADAPTER_DESC adapter_desc {};
+      if (SUCCEEDED(adapter_p->GetDesc(&adapter_desc)) && adapter_desc.VendorId == 0x10de &&
+          GetFileAttributesW(L"C:\\ProgramData\\GouKuai\\Diagnostics\\conversion-soft-priority.enable") != INVALID_FILE_ATTRIBUTES) {
+        constexpr INT requested = (1 << 30) | 16;
+        status = dxgi->SetGPUThreadPriority(requested);
+        INT observed = 0;
+        if (SUCCEEDED(status) && SUCCEEDED(dxgi->GetGPUThreadPriority(&observed)) && observed == requested) {
+          BOOST_LOG(info) << "GouKuai conversion context soft realtime 16 verified; process policy unchanged";
+        } else {
+          auto restored = dxgi->SetGPUThreadPriority(7);
+          BOOST_LOG(warning) << "GouKuai conversion soft priority unavailable; relative 7 restore status " << util::hex(restored).to_string_view();
+        }
+      }
+
       auto default_color_vectors = ::video::color_vectors_from_colorspace({::video::colorspace_e::rec601, false, 8}, true);
       if (!default_color_vectors) {
         BOOST_LOG(error) << "Missing color vectors for Rec. 601"sv;

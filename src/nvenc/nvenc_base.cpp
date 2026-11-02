@@ -250,6 +250,10 @@ namespace nvenc {
     enc_config.rcParams.enableLookahead = 0;
     enc_config.rcParams.lowDelayKeyFrameScale = 1;
     auto two_pass = config.two_pass;
+    if (gpu_reserve_single_pass) {
+      two_pass = nvenc_two_pass::disabled;
+      BOOST_LOG(info) << "GouKuai RTX4060 GPU reserve policy active: device soft priority and single-pass NVENC; process policy unchanged";
+    }
 #ifdef _WIN32
     // Owned diagnostic switch, separate from the signed V2 runtime INI contract.
     // Sampling at encoder creation makes the existing capture reinit the only

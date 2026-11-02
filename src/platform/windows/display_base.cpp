@@ -32,6 +32,7 @@ typedef enum _D3DKMT_GPU_PREFERENCE_QUERY_STATE: DWORD {
 } D3DKMT_GPU_PREFERENCE_QUERY_STATE;
 
 #include "display.h"
+#include "gpu_reserve_policy.h"
 #include "misc.h"
 #include "src/config.h"
 #include "src/display_device.h"
@@ -456,6 +457,7 @@ namespace platf::dxgi {
   }
 
   int display_base_t::init(const ::video::config_t &config, const std::string &display_name) {
+    gpu_reserve_active = false;
     std::once_flag windows_cpp_once_flag;
 
     std::call_once(windows_cpp_once_flag, []() {
@@ -687,6 +689,8 @@ namespace platf::dxgi {
         if (d3dkmt_set_process_priority) {
           auto priority = D3DKMT_SCHEDULINGPRIORITYCLASS_REALTIME;
           bool hags_enabled = check_hags(adapter_desc.AdapterLuid);
+          gpu_reserve_active = gpu_reserve::enabled(adapter_desc.VendorId, adapter_desc.DeviceId,
+                                                    hags_enabled, config::video.nv_realtime_hags);
           if (adapter_desc.VendorId == 0x10DE) {
             // As of 2023.07, NVIDIA driver has unfixed bug(s) where "realtime" can cause unrecoverable encoding freeze or outright driver crash
             // This issue happens more frequently with HAGS, in DX12 games or when VRAM is filled close to max capacity
@@ -719,12 +723,13 @@ namespace platf::dxgi {
       // The capture device produces the shared texture consumed by conversion.
       // Elevating only the consumer leaves the producer fence at normal priority.
       // Keep this opt-in and preserve the process-level HAGS freeze guard.
-      if (adapter_desc.VendorId == 0x10de &&
-          GetFileAttributesW(L"C:\\ProgramData\\GouKuai\\Diagnostics\\conversion-soft-priority.enable") != INVALID_FILE_ATTRIBUTES) {
+      if (gpu_reserve_active || (adapter_desc.VendorId == 0x10de &&
+          GetFileAttributesW(L"C:\\ProgramData\\GouKuai\\Diagnostics\\conversion-soft-priority.enable") != INVALID_FILE_ATTRIBUTES)) {
         status = dxgi->SetGPUThreadPriority((1 << 30) | 16);
         if (SUCCEEDED(status)) {
           BOOST_LOG(info) << "GouKuai capture soft realtime 16 request accepted; process policy unchanged; performance verification required";
         } else {
+          gpu_reserve_active = false;
           const auto restored = dxgi->SetGPUThreadPriority(7);
           BOOST_LOG(warning) << "GouKuai capture soft priority unavailable; relative 7 restore status " << util::hex(restored).to_string_view();
         }

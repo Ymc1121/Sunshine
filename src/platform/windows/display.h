@@ -178,6 +178,7 @@ namespace platf::dxgi {
 
     DXGI_FORMAT capture_format;
     D3D_FEATURE_LEVEL feature_level;
+    bool gpu_reserve_active = false;
 
     std::unique_ptr<high_precision_timer> timer = create_high_precision_timer();
 

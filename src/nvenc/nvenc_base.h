@@ -44,6 +44,10 @@ namespace nvenc {
      */
     bool create_encoder(const nvenc_config &config, const video::config_t &client_config, const nvenc_colorspace_t &colorspace, NV_ENC_BUFFER_FORMAT buffer_format);
 
+    void set_gpu_reserve_single_pass(bool enabled) {
+      gpu_reserve_single_pass = enabled;
+    }
+
     /**
      * @brief Destroy the encoder.
      *        Derived classes classes call it in the destructor.
@@ -117,6 +121,7 @@ namespace nvenc {
     uint32_t min_struct_version(uint32_t version, uint32_t v11_struct_version = 0, uint32_t v12_struct_version = 0);
 
     const NV_ENC_DEVICE_TYPE device_type;
+    bool gpu_reserve_single_pass = false;
 
     void *encoder = nullptr;
 

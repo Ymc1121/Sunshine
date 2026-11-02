@@ -784,8 +784,10 @@ namespace platf::dxgi {
       // process-level HAGS/NVENC freeze guard. Soft realtime yields to other
       // workloads; never use hard realtime or the internal-use priority.
       DXGI_ADAPTER_DESC adapter_desc {};
-      if (SUCCEEDED(adapter_p->GetDesc(&adapter_desc)) && adapter_desc.VendorId == 0x10de &&
-          GetFileAttributesW(L"C:\\ProgramData\\GouKuai\\Diagnostics\\conversion-soft-priority.enable") != INVALID_FILE_ATTRIBUTES) {
+      const auto capture_display = std::dynamic_pointer_cast<display_base_t>(display);
+      gpu_reserve_active = capture_display && capture_display->gpu_reserve_active;
+      if (gpu_reserve_active || (SUCCEEDED(adapter_p->GetDesc(&adapter_desc)) && adapter_desc.VendorId == 0x10de &&
+          GetFileAttributesW(L"C:\\ProgramData\\GouKuai\\Diagnostics\\conversion-soft-priority.enable") != INVALID_FILE_ATTRIBUTES)) {
         constexpr INT requested = (1 << 30) | 16;
         status = dxgi->SetGPUThreadPriority(requested);
         INT observed = 0;
@@ -798,6 +800,7 @@ namespace platf::dxgi {
                           << observed << " status " << util::hex(observed_status).to_string_view()
                           << "; process policy unchanged; performance verification required";
         } else {
+          gpu_reserve_active = false;
           auto restored = dxgi->SetGPUThreadPriority(7);
           BOOST_LOG(warning) << "GouKuai conversion soft priority unavailable; relative 7 restore status " << util::hex(restored).to_string_view();
         }
@@ -986,6 +989,7 @@ namespace platf::dxgi {
 
     device_t device;
     device_ctx_t device_ctx;
+    bool gpu_reserve_active = false;
 
     texture2d_t output_texture;
   };
@@ -1106,6 +1110,7 @@ namespace platf::dxgi {
         nvenc_d3d = std::make_unique<nvenc::nvenc_d3d11_native>(base.device.get());
       }
       nvenc = nvenc_d3d.get();
+      nvenc_d3d->set_gpu_reserve_single_pass(base.gpu_reserve_active);
 
       return true;
     }

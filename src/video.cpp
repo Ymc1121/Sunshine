@@ -1600,6 +1600,8 @@ namespace video {
     packet->channel_data = channel_data;
     packet->after_ref_frame_invalidation = encoded_frame.after_ref_frame_invalidation;
     packet->frame_timestamp = frame_timestamp;
+    frame_timing::span trace_ready("encoded_packet_ready");
+    trace_ready.stop();
     packets->raise(std::move(packet));
 
     return 0;
